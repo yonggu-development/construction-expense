@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支出管理系統</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f26522">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="支出管理">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#ebebeb; --panel:#f4f4f4; --surface:#ffffff;
+  --orange:#f26522; --orange-h:#e05510;
+  --dark:#333333; --mid:#888888; --muted:#b0b0b0; --rust:#8b3a2a;
+}
+body { background:var(--bg); color:var(--dark); font-family:'Noto Sans TC','Inter',sans-serif; font-size:13px; min-height:100vh; }
+
+/* HEADER */
+header { background:var(--surface); padding:0 40px; height:58px; display:flex; align-items:center; gap:14px; }
+.h-title { font-size:16px; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; }
+.h-dot { width:6px; height:6px; border-radius:50%; background:var(--orange); }
+.h-sub { font-size:11px; color:var(--muted); font-weight:400; letter-spacing:0.05em; text-transform:uppercase; }
+.h-date { margin-left:auto; font-size:11px; color:var(--mid); }
+.h-status { font-size:10px; font-weight:600; letter-spacing:0.06em; padding:4px 12px; border-radius:12px; }
+.h-status.ok   { background:#e6f4ea; color:#2d7a4a; }
+.h-status.err  { background:#fde8e8; color:#8a2020; }
+.h-status.busy { background:#fff3e0; color:#8a5a00; }
+
+/* PAGE */
+.page { padding:28px 40px; display:flex; flex-direction:column; gap:32px; }
+
+/* SECTION LABEL */
+.sec-label { font-size:10px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--mid); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+.sec-label::before { content:''; width:14px; height:2px; background:var(--orange); border-radius:1px; }
+
+/* INPUT */
+.input-band { background:var(--panel); border-radius:6px; padding:18px 22px; overflow-x:auto; }
+.input-row { display:flex; align-items:flex-end; gap:10px; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field label { font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+.field input,.field select { height:34px; background:var(--surface); border:none; border-radius:17px; color:var(--dark); font-family:inherit; font-size:12px; padding:0 14px; outline:none; -webkit-appearance:none; transition:box-shadow 0.15s; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+.field input:focus,.field select:focus { box-shadow:0 0 0 2px var(--orange); }
+.field input::placeholder { color:var(--muted); }
+.field select { cursor:pointer; padding-right:30px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%23b0b0b0'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; background-color:var(--surface); }
+.field select option { background:#fff; }
+.w-date   { min-width:118px; flex:1.2; }
+.w-seq    { min-width:168px; flex:1.4; }
+.w-proj   { min-width:88px;  flex:1; }
+.w-phase  { min-width:158px; flex:1.8; }
+.w-item   { min-width:74px;  flex:0.9; }
+.w-detail { min-width:74px;  flex:0.9; }
+.w-cont   { min-width:98px;  flex:1.2; }
+.w-tgt    { min-width:74px;  flex:0.9; }
+.w-meth   { min-width:68px;  flex:0.8; }
+.w-amt    { min-width:86px;  flex:1; }
+.w-rcpt   { min-width:74px;  flex:0.9; }
+.w-note   { min-width:78px;  flex:1; }
+
+/* STATS */
+.stats-row { display:grid; grid-template-columns:repeat(7,1fr); gap:12px; }
+.stat-card { background:var(--panel); border-radius:6px; padding:20px 16px 16px; text-align:center; }
+.stat-name { font-size:10px; font-weight:600; letter-spacing:0.04em; color:var(--mid); line-height:1.55; min-height:30px; margin-bottom:14px; }
+.stat-amt { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:36px; font-weight:700; color:var(--rust); letter-spacing:-0.03em; line-height:1; font-variant-numeric:tabular-nums; }
+.stat-cur { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:12px; font-weight:700; color:var(--rust); opacity:0.55; margin-right:1px; vertical-align:super; }
+.stat-n { font-size:10px; color:var(--muted); margin-top:8px; }
+.total-band { background:var(--dark); border-radius:6px; padding:14px 24px; display:flex; align-items:center; gap:18px; }
+.total-band .t-lbl { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); }
+.total-band .t-amt { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:24px; font-weight:700; color:var(--orange); letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+.total-band .t-n { margin-left:auto; font-size:11px; color:var(--mid); }
+
+/* RECORDS */
+.toolbar { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.s-wrap { position:relative; display:flex; align-items:center; }
+.s-wrap svg { position:absolute; left:12px; pointer-events:none; }
+.s-input { height:32px; width:200px; background:var(--panel); border:none; border-radius:16px; color:var(--dark); font-family:inherit; font-size:12px; padding:0 12px 0 32px; outline:none; transition:box-shadow 0.15s; }
+.s-input:focus { box-shadow:0 0 0 2px var(--orange); }
+.s-input::placeholder { color:var(--muted); }
+.f-sel { height:32px; background:var(--panel); border:none; border-radius:16px; color:var(--mid); font-family:inherit; font-size:11px; font-weight:500; padding:0 28px 0 14px; outline:none; cursor:pointer; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23b0b0b0'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; background-color:var(--panel); transition:box-shadow 0.15s; }
+.f-sel:focus { box-shadow:0 0 0 2px var(--orange); }
+.f-sel option { background:#fff; }
+.r-count { margin-left:auto; font-size:11px; color:var(--muted); font-weight:500; }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead th { padding:8px 12px; text-align:left; font-size:9px; font-weight:700; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; border-bottom:2px solid var(--panel); white-space:nowrap; }
+thead th.r { text-align:right; }
+tbody tr { background:var(--surface); transition:background 0.1s; }
+tbody tr:nth-child(even) { background:var(--panel); }
+tbody tr:hover { background:#f0ede9; }
+tbody td { padding:10px 12px; vertical-align:middle; white-space:nowrap; color:var(--dark); border:none; }
+tbody td.dim { color:var(--muted); }
+.amt-cell { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; color:var(--rust); }
+.bdg { display:inline-block; padding:3px 10px; border-radius:12px; font-size:10px; font-weight:600; white-space:nowrap; }
+.p0{background:#dff0f8;color:#1e6080;} .p1{background:#e0f4e8;color:#1e6040;}
+.p2{background:#fdf0e0;color:#804818;} .p3{background:#fde0e0;color:#802018;}
+.p4{background:#ede0f8;color:#502080;} .p5{background:#f8f4dc;color:#605010;}
+.p6{background:#dcf4ee;color:#186050;}
+.btn-del { background:transparent; border:1.5px solid #ddd; color:var(--muted); font-size:10px; font-family:inherit; font-weight:600; padding:3px 12px; border-radius:12px; cursor:pointer; transition:all 0.15s; }
+.btn-del:hover { border-color:var(--orange); color:var(--orange); background:#fff5f0; }
+.empty { text-align:center; padding:48px 0; color:var(--muted); font-size:12px; letter-spacing:0.05em; }
+.toast { position:fixed; bottom:24px; right:24px; background:var(--dark); color:#fff; font-size:12px; font-weight:500; padding:10px 20px; border-radius:20px; opacity:0; transform:translateY(10px); transition:all 0.22s; pointer-events:none; z-index:999; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.ok { background:var(--orange); }
+
+/* Loading overlay */
+.loading-bar { position:fixed; top:0; left:0; right:0; height:3px; background:var(--orange); transform:scaleX(0); transform-origin:left; transition:transform 0.3s; z-index:9999; }
+.loading-bar.active { transform:scaleX(0.7); }
+.loading-bar.done   { transform:scaleX(1); transition:transform 0.1s; }
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loading-bar"></div>
+
+<header>
+  <span class="h-title">支出管理系統</span>
+  <span class="h-dot"></span>
+  <span class="h-sub">Expense Management</span>
+  <span class="h-status busy" id="conn-status">連線中…</span>
+  <span class="h-date" id="today-label"></span>
+</header>
+
+<div class="page">
+
+  <!-- ① INPUT -->
+  <section>
+    <div class="sec-label">新增支出記錄</div>
+    <div class="input-band">
+      <div class="input-row">
+        <div class="field w-date">
+          <label>日期</label>
+          <input type="date" id="f-date">
+        </div>
+        <div class="field w-seq">
+          <label>序號</label>
+          <input type="text" id="f-seq" readonly style="cursor:default;opacity:0.7;">
+        </div>
+        <div class="field w-proj">
+          <label>專案</label>
+          <input type="text" id="f-project" placeholder="專案名稱">
+        </div>
+        <div class="field w-phase">
+          <label>支出階段</label>
+          <select id="f-phase">
+            <option value="">— 選擇階段 —</option>
+            <option>購地階段</option>
+            <option>規劃設計/執照申請階段</option>
+            <option>銷售階段</option>
+            <option>營建階段</option>
+            <option>交屋營運階段</option>
+            <option>貸款/稅務</option>
+            <option>竣工階段</option>
+          </select>
+        </div>
+        <div class="field w-item">
+          <label>支出項目</label>
+          <input type="text" id="f-item" placeholder="項目">
+        </div>
+        <div class="field w-detail">
+          <label>支出細目</label>
+          <input type="text" id="f-detail" placeholder="細目">
+        </div>
+        <div class="field w-cont">
+          <label>支出內容</label>
+          <input type="text" id="f-content" placeholder="說明">
+        </div>
+        <div class="field w-tgt">
+          <label>支出對象</label>
+          <input type="text" id="f-target" placeholder="對象">
+        </div>
+        <div class="field w-meth">
+          <label>支出方式</label>
+          <input type="text" id="f-method" placeholder="方式">
+        </div>
+        <div class="field w-amt">
+          <label>金額 (NT$)</label>
+          <input type="number" id="f-amount" placeholder="0" min="0">
+        </div>
+        <div class="field w-rcpt">
+          <label>支出憑證</label>
+          <input type="text" id="f-receipt" placeholder="憑證編號">
+        </div>
+        <div class="field w-note">
+          <label>備註</label>
+          <input type="text" id="f-note" placeholder="備註">
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:flex-end;gap:12px;">
+        <span style="font-size:10px;color:var(--muted);letter-spacing:0.06em;">按 Enter 或點擊按鈕新增記錄</span>
+        <button id="btn-submit" onclick="addRecord()" style="height:30px;padding:0 20px;background:var(--orange);color:#fff;border:none;border-radius:15px;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 2px 8px rgba(242,101,34,0.3);transition:background 0.15s;" onmouseover="this.style.background='#e05510'" onmouseout="this.style.background='#f26522'">＋ 新增</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ② STATS -->
+  <section>
+    <div class="sec-label">各支出階段累計金額</div>
+    <div class="stats-row" id="stats-grid"></div>
+  </section>
+
+  <!-- ③ RECORDS -->
+  <section>
+    <div class="sec-label">支出記錄列表</div>
+    <div class="toolbar">
+      <div class="s-wrap">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <circle cx="5.5" cy="5.5" r="4.5" stroke="#b0b0b0" stroke-width="1.4"/>
+          <line x1="9" y1="9" x2="12.5" y2="12.5" stroke="#b0b0b0" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <input class="s-input" type="text" id="search-input" placeholder="搜尋關鍵字…" oninput="renderTable()">
+      </div>
+      <select class="f-sel" id="filter-phase" onchange="renderTable()">
+        <option value="">全部階段</option>
+        <option>購地階段</option>
+        <option>規劃設計/執照申請階段</option>
+        <option>銷售階段</option>
+        <option>營建階段</option>
+        <option>交屋營運階段</option>
+        <option>貸款/稅務</option>
+        <option>竣工階段</option>
+      </select>
+      <span class="r-count" id="rec-count">—</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th><th>序號</th><th>專案</th><th>支出階段</th>
+            <th>支出項目</th><th>支出細目</th><th>支出內容</th>
+            <th>支出對象</th><th>支出方式</th>
+            <th class="r">金額 (NT$)</th>
+            <th>支出憑證</th><th>備註</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="records-tbody">
+          <tr><td colspan="13"><div class="empty">載入中…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  !! 請將下方網址換成你的 Apps Script 部署網址 !!
+// ═══════════════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbwjoeYglyqZW-HVLvfJsBJ5qUe_egQxBQDwzb_rcZ53eqWz4E9yGh69KBmynF--f0NHYQ/exec';
+// ═══════════════════════════════════════════════════════
+
+const PHASES = ["購地階段","規劃設計/執照申請階段","銷售階段","營建階段","交屋營運階段","貸款/稅務","竣工階段"];
+const PCLS   = ["p0","p1","p2","p3","p4","p5","p6"];
+
+let records = [];   // 從 Google Sheets 載入
+let busy    = false;
+
+// ── Loading bar ──
+function setLoading(on) {
+  const bar = document.getElementById('loading-bar');
+  if (on) { bar.className = 'loading-bar active'; }
+  else    { bar.className = 'loading-bar done'; setTimeout(() => bar.className = 'loading-bar', 300); }
+}
+
+// ── API helper（全部用 GET）──
+async function apiCall(params) {
+  const url = API_URL + '?' + new URLSearchParams(params);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+// ── 初次載入所有記錄 ──
+async function loadAll() {
+  if (false) {
+    setStatus('尚未設定 API', 'err');
+    document.getElementById('records-tbody').innerHTML =
+      '<tr><td colspan="13"><div class="empty">請先在 HTML 檔案中填入 Apps Script 部署網址（API_URL）</div></td></tr>';
+    return;
+  }
+  setLoading(true);
+  try {
+    const data = await apiCall({ action: 'getAll' });
+    if (data.status === 'ok') {
+      records = data.records.map(r => ({ ...r, amount: Number(r.amount) }));
+      setStatus('已連線', 'ok');
+      renderAll();
+      updateSeqPreview();
+    } else {
+      throw new Error(data.message);
+    }
+  } catch (e) {
+    setStatus('連線失敗', 'err');
+    showToast('無法連接資料庫：' + e.message, false);
+  }
+  setLoading(false);
+}
+
+// ── 序號產生 ──
+function genSeq(dateStr) {
+  const dp    = dateStr.replace(/-/g, '');
+  const count = records.filter(r => r.date === dateStr).length + 1;
+  return 'CO-' + dp + String(count).padStart(3, '0');
+}
+
+function updateSeqPreview() {
+  const d = document.getElementById('f-date').value;
+  document.getElementById('f-seq').value = d ? genSeq(d) : '';
+}
+
+// ── 新增記錄 ──
+async function addRecord() {
+  if (busy) return;
+  const g = id => document.getElementById(id);
+  const date    = g('f-date').value;
+  const project = g('f-project').value.trim();
+  const phase   = g('f-phase').value;
+  const item    = g('f-item').value.trim();
+  const detail  = g('f-detail').value.trim();
+  const content = g('f-content').value.trim();
+  const target  = g('f-target').value.trim();
+  const method  = g('f-method').value.trim();
+  const amount  = parseFloat(g('f-amount').value) || 0;
+  const receipt = g('f-receipt').value.trim();
+  const note    = g('f-note').value.trim();
+
+  if (!date)   return showToast('請填寫日期', false);
+  if (!phase)  return showToast('請選擇支出階段', false);
+  if (!amount) return showToast('請填寫金額', false);
+
+  busy = true;
+  setBtnState(true);
+  setLoading(true);
+
+  const seqVal = genSeq(date);
+  const record = { id: Date.now(), date, seq: seqVal, project, phase,
+                   item, detail, content, target, method, amount, receipt, note };
+  try {
+    const res = await apiCall({ action: 'add', data: JSON.stringify(record) });
+    if (res.status === 'ok') {
+      records.push(record);
+      renderAll();
+      clearForm();
+      showToast('✓ 記錄已新增', true);
+    } else {
+      throw new Error(res.message);
+    }
+  } catch (e) {
+    showToast('新增失敗：' + e.message, false);
+  }
+
+  busy = false;
+  setBtnState(false);
+  setLoading(false);
+}
+
+// ── 刪除記錄 ──
+async function deleteRecord(id) {
+  if (busy) return;
+  if (!confirm('確定刪除這筆記錄？')) return;
+  busy = true;
+  setLoading(true);
+
+  try {
+    const res = await apiCall({ action: 'delete', id });
+    if (res.status === 'ok') {
+      records = records.filter(r => r.id !== id);
+      // 重新排序本地序號
+      [...new Set(records.map(r => r.date))].forEach(d => {
+        const dp = d.replace(/-/g, '');
+        records.filter(r => r.date === d).sort((a,b) => a.id - b.id)
+          .forEach((r, i) => { r.seq = 'CO-' + dp + String(i+1).padStart(3,'0'); });
+      });
+      renderAll();
+      updateSeqPreview();
+      showToast('已刪除', false);
+    } else {
+      throw new Error(res.message);
+    }
+  } catch (e) {
+    showToast('刪除失敗：' + e.message, false);
+  }
+
+  busy = false;
+  setLoading(false);
+}
+
+function clearForm() {
+  ['f-project','f-item','f-detail','f-content','f-target',
+   'f-method','f-amount','f-receipt','f-note'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-phase').value = '';
+  updateSeqPreview();
+}
+
+function setBtnState(loading) {
+  const btn = document.getElementById('btn-submit');
+  btn.textContent = loading ? '儲存中…' : '＋ 新增';
+  btn.disabled = loading;
+  btn.style.opacity = loading ? '0.6' : '1';
+}
+
+function setStatus(text, type) {
+  const el = document.getElementById('conn-status');
+  el.textContent = text;
+  el.className = 'h-status ' + type;
+}
+
+// ── Render Stats ──
+function renderStats() {
+  let total = 0, totalN = 0, html = '';
+  PHASES.forEach(p => {
+    const rs = records.filter(r => r.phase === p);
+    const s  = rs.reduce((a, r) => a + r.amount, 0);
+    total += s; totalN += rs.length;
+    html += `<div class="stat-card">
+      <div class="stat-name">${p}</div>
+      <div class="stat-amt"><span class="stat-cur">$</span>${fmt(s)}</div>
+      <div class="stat-n">${rs.length} 筆</div>
+    </div>`;
+  });
+  document.getElementById('stats-grid').innerHTML = html;
+
+  let tb = document.getElementById('total-band');
+  if (!tb) {
+    tb = document.createElement('div');
+    tb.id = 'total-band'; tb.className = 'total-band'; tb.style.marginTop = '12px';
+    document.getElementById('stats-grid').parentNode.appendChild(tb);
+  }
+  tb.innerHTML = `<span class="t-lbl">總計</span>
+    <span class="t-amt">NT$ ${fmt(total)}</span>
+    <span class="t-n">共 ${totalN} 筆記錄</span>`;
+}
+
+// ── Render Table ──
+function renderTable() {
+  const kw = document.getElementById('search-input').value.toLowerCase();
+  const fp = document.getElementById('filter-phase').value;
+  let list = [...records];
+  if (fp) list = list.filter(r => r.phase === fp);
+  if (kw) list = list.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(kw)));
+  list.sort((a,b) => b.date !== a.date ? b.date.localeCompare(a.date) : b.id - a.id);
+
+  document.getElementById('rec-count').textContent = `${list.length} 筆`;
+  const tb = document.getElementById('records-tbody');
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="13"><div class="empty">尚無符合的記錄</div></td></tr>`;
+    return;
+  }
+  const dash = s => s || '<span class="dim">—</span>';
+  tb.innerHTML = list.map(r => {
+    const pi = PHASES.indexOf(r.phase);
+    return `<tr>
+      <td>${r.date}</td>
+      <td class="dim">${r.seq}</td>
+      <td>${dash(r.project)}</td>
+      <td><span class="bdg ${PCLS[pi]}">${r.phase}</span></td>
+      <td>${dash(r.item)}</td><td>${dash(r.detail)}</td><td>${dash(r.content)}</td>
+      <td>${dash(r.target)}</td><td>${dash(r.method)}</td>
+      <td class="amt-cell">$${fmt(r.amount)}</td>
+      <td class="dim">${r.receipt||'—'}</td>
+      <td class="dim">${r.note||'—'}</td>
+      <td><button class="btn-del" onclick="deleteRecord(${r.id})">刪除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAll() { renderStats(); renderTable(); }
+function fmt(n) { return Number(n).toLocaleString('zh-TW'); }
+
+function showToast(msg, ok) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (ok ? ' ok' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Init ──
+const now = new Date();
+document.getElementById('f-date').valueAsDate = now;
+document.getElementById('today-label').textContent =
+  now.toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+document.getElementById('f-date').addEventListener('change', updateSeqPreview);
+document.querySelector('.input-band').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addRecord();
+});
+
+loadAll();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('SW registered'))
+      .catch(e => console.log('SW error', e));
+  });
+}
+</script>
+</body>
+</html>
